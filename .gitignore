@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML / training artifacts
+runs/
+outputs/
+results/
+logs/
+checkpoints/
+weights/
+wandb/
+mlruns/
+tensorboard/
+
+# Large model files
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.bin
+*.joblib
+*.pkl
+*.h5
+
+# Data
+data/
+datasets/
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.npy
+*.npz
+
+# OS / IDE
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+data/
+*.zip
+runs/
+*.pt
+__pycache__/
+*.pyc
+.venv/
+venv/data/*.zip
+data/*.zip
