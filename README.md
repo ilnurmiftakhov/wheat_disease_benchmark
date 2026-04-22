@@ -138,18 +138,133 @@ python train_torchvision_detector.py \
 - `Pillow`
 - `opencv-python`
 
-Пример установки:
+В репозитории есть готовый файл зависимостей:
+
+```bash
+pip install -r requirements.txt
+```
+
+Если нужен ручной вариант:
 
 ```bash
 pip install torch torchvision ultralytics numpy pillow opencv-python
 ```
 
-## Данные и артефакты
+## Как получить NWRD
 
-В GitHub-репозиторий целесообразно хранить код, manifests и итоговые `result.json`.  
-Сырые данные, тайлы датасета, большие веса и архивы лучше не коммитить в обычный Git без необходимости: они сильно раздувают репозиторий.
+Источник данных:
 
-Если нужно хранить крупные бинарные артефакты в GitHub, лучше использовать **Git LFS**.
+- NWRD dataset page: https://robustreading.com/datasets/NUST-Wheat-Rust-Disease-Dataset/
+- NWRD repository: https://github.com/dll-ncai/NUST-Wheat-Rust-Disease-NWRD
+
+Скрипт `prepare_nwrd_detection.py` ожидает исходные данные в каталоге `data/NWRD` со структурой вида:
+
+```text
+data/NWRD/
+├─ train/
+│  ├─ images/
+│  └─ masks/
+└─ test/
+   ├─ images/
+   └─ masks/
+```
+
+Если вы скачали архив `NWRD.zip`, распакуйте его так, чтобы итоговый путь был именно `data/NWRD/...`.
+
+Пример:
+
+```bash
+mkdir -p data
+# распакуйте архив так, чтобы внутри появился каталог data/NWRD
+```
+
+## Как подготовить detection-датасет
+
+После того как исходный NWRD лежит в `data/NWRD`, выполните:
+
+```bash
+python prepare_nwrd_detection.py
+```
+
+Скрипт:
+- нарежет исходные изображения на тайлы,
+- извлечет боксы из disease masks,
+- создаст `train / val / test` split,
+- сохранит detection-артефакты в `data/nwrd_detection_tiles/`.
+
+В результате появятся, в частности:
+- `data/nwrd_detection_tiles/dataset.yaml`
+- `data/nwrd_detection_tiles/manifest.json`
+- `data/nwrd_detection_tiles/manifest_benchmark.json`
+
+## Как воспроизвести benchmark
+
+### 1. Подготовить данные
+
+```bash
+python prepare_nwrd_detection.py
+```
+
+### 2. Обучить и оценить YOLOv8n
+
+```bash
+python run_yolov8n.py \
+  --epochs 3 \
+  --imgsz 320 \
+  --batch 16 \
+  --data data/nwrd_detection_tiles/dataset.yaml \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs/yolov8n
+```
+
+### 3. Обучить и оценить SSDLite320-MobileNetV3-Large
+
+```bash
+python train_torchvision_detector.py \
+  --model ssdlite320_mobilenet_v3_large \
+  --epochs 3 \
+  --batch-size 8 \
+  --lr 1e-4 \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs
+```
+
+### 4. Обучить и оценить Faster R-CNN MobileNetV3 Large 320 FPN
+
+```bash
+python train_torchvision_detector.py \
+  --model fasterrcnn_mobilenet_v3_large_320_fpn \
+  --epochs 3 \
+  --batch-size 2 \
+  --lr 1e-4 \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs
+```
+
+### 5. Сравнить результаты
+
+После запуска итоговые метрики будут лежать в:
+
+- `runs/yolov8n/result.json`
+- `runs/ssdlite320_mobilenet_v3_large/result.json`
+- `runs/fasterrcnn_mobilenet_v3_large_320_fpn/result.json`
+
+## Что хранится в GitHub, а что нет
+
+В GitHub-репозиторий включены:
+- код
+- manifests и YAML-конфиги
+- `result.json`
+- benchmark-отчет
+- `requirements.txt`
+
+В GitHub **не включены** тяжелые артефакты:
+- raw dataset
+- extracted tiles
+- model weights
+- большие training outputs
+
+Это сделано специально, чтобы репозиторий оставался компактным и нормально клонировался.
 
 ## Подробный отчет
 
@@ -166,6 +281,14 @@ pip install torch torchvision ultralytics numpy pillow opencv-python
 - YOLOv8 docs: https://docs.ultralytics.com/models/yolov8/
 - Torchvision SSDLite320 MobileNetV3 Large: https://pytorch.org/vision/stable/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html
 - Torchvision Faster R-CNN MobileNetV3 Large 320 FPN: https://pytorch.org/vision/stable/models/generated/torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn.html
+
+## Reproducibility notes
+
+Этот репозиторий задуман как **воспроизводимый pilot benchmark**, но важно учитывать ограничения:
+- обучение проводилось в CPU-only режиме;
+- detection-boxes получены автоматически из segmentation masks;
+- абсолютные метрики низкие, поэтому это baseline, а не production-ready pipeline;
+- для полного совпадения результатов важны версии библиотек и структура исходного датасета.
 
 ## Статус
 
