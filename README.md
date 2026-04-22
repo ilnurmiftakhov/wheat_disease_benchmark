@@ -1,43 +1,157 @@
-"# Wheat Disease Benchmark
+# Wheat Disease Benchmark
 
-Репозиторий с воспроизводимым пилотным benchmark-проектом по сравнению легких детекторов болезней пшеницы на полевых изображениях для UAV/edge-сценария.
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Status](https://img.shields.io/badge/status-pilot%20benchmark-informational.svg)](#status)
 
-## Что это за проект
+Reproducible pilot benchmark for comparing lightweight wheat disease detectors on field imagery in UAV/edge-style conditions.
 
-В проекте сравниваются три компактные модели object detection для задачи обнаружения очагов ржавчины пшеницы на датасете **NWRD (NUST Wheat Rust Disease Dataset)**:
+## Summary
+
+This project compares three compact object detectors for **wheat rust region detection** on **NWRD (NUST Wheat Rust Disease Dataset)**:
 
 - **YOLOv8n**
 - **SSDLite320-MobileNetV3-Large**
 - **Faster R-CNN MobileNetV3-Large 320 FPN**
 
-Так как NWRD публикуется как segmentation-dataset, в проекте реализована конвертация масок болезни в detection-разметку:
+Because NWRD is published as a segmentation dataset, this repository converts disease masks into detection labels by:
 
-- изображения режутся на тайлы `1024x1024`
-- по бинарной маске строятся connected components
-- для компонент площадью от `512 px` строятся bounding boxes
-- тайлы без болезни сохраняются как negative examples
+- tiling images into `1024x1024` crops;
+- extracting connected components from binary disease masks;
+- turning components with area `>= 512 px` into bounding boxes;
+- keeping disease-free tiles as negative examples.
 
-## Краткий результат benchmark
+## Main result
 
-| Модель | Параметры | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | F1 | Latency, ms/img | FPS |
+| Model | Params | mAP@0.5 | mAP@0.5:0.95 | Precision | Recall | F1 | Latency, ms/img | FPS |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | YOLOv8n | 3.01M | **0.1301** | **0.0457** | **0.4545** | 0.0294 | 0.0552 | **53.95** | **18.54** |
 | Faster R-CNN MobileNetV3 320 FPN | 18.93M | 0.0142 | 0.0033 | 0.0483 | **0.0794** | **0.0601** | 110.32 | 9.06 |
 | SSDLite320-MobileNetV3-Large | 3.71M | 0.0008 | 0.00015 | 0.0051 | 0.0294 | 0.0087 | 86.19 | 11.60 |
 
-### Практический вывод
+### Practical takeaway
 
-Лучший общий баланс качества и скорости в этом pilot benchmark показал **YOLOv8n**.  
-Но абсолютные метрики у всех моделей низкие, поэтому проект стоит рассматривать как **baseline и инженерный benchmark**, а не как production-ready решение.
+In this pilot benchmark, **YOLOv8n** gives the best overall balance of localization quality and inference speed.
 
-## Структура репозитория
+Important caveat: absolute metrics are low for all tested models, so this repository should be treated as a **baseline and reproducible engineering benchmark**, not as a production-ready disease detection system.
+
+## Quickstart
+
+### 1. Clone the repository
+
+```bash
+git clone git@github.com:ilnurmiftakhov/wheat_disease_benchmark.git
+cd wheat_disease_benchmark
+```
+
+### 2. Create an environment
+
+Using pip:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+pip install -r requirements.txt
+```
+
+Using Conda:
+
+```bash
+conda env create -f environment.yml
+conda activate wheat-disease-benchmark
+```
+
+### 3. Download NWRD
+
+Sources:
+
+- Dataset page: https://robustreading.com/datasets/NUST-Wheat-Rust-Disease-Dataset/
+- Code repository: https://github.com/dll-ncai/NUST-Wheat-Rust-Disease-NWRD
+
+Place the raw dataset under `data/NWRD` so that the structure is:
+
+```text
+data/NWRD/
+├─ train/
+│  ├─ images/
+│  └─ masks/
+└─ test/
+   ├─ images/
+   └─ masks/
+```
+
+If you download `NWRD.zip`, extract it so the final path is exactly `data/NWRD/...`.
+
+### 4. Prepare the detection dataset
+
+```bash
+python prepare_nwrd_detection.py
+```
+
+This will:
+- tile raw images;
+- extract boxes from masks;
+- create `train / val / test` splits;
+- write detection artifacts to `data/nwrd_detection_tiles/`.
+
+### 5. Reproduce the benchmark
+
+YOLOv8n:
+
+```bash
+python run_yolov8n.py \
+  --epochs 3 \
+  --imgsz 320 \
+  --batch 16 \
+  --data data/nwrd_detection_tiles/dataset.yaml \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs/yolov8n
+```
+
+SSDLite320-MobileNetV3-Large:
+
+```bash
+python train_torchvision_detector.py \
+  --model ssdlite320_mobilenet_v3_large \
+  --epochs 3 \
+  --batch-size 8 \
+  --lr 1e-4 \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs
+```
+
+Faster R-CNN MobileNetV3 Large 320 FPN:
+
+```bash
+python train_torchvision_detector.py \
+  --model fasterrcnn_mobilenet_v3_large_320_fpn \
+  --epochs 3 \
+  --batch-size 2 \
+  --lr 1e-4 \
+  --manifest data/nwrd_detection_tiles/manifest.json \
+  --outdir runs
+```
+
+### 6. Inspect results
+
+Final metrics are saved to:
+
+- `runs/yolov8n/result.json`
+- `runs/ssdlite320_mobilenet_v3_large/result.json`
+- `runs/fasterrcnn_mobilenet_v3_large_320_fpn/result.json`
+
+## Repository contents
 
 ```text
 .
-├─ benchmark_utils.py                  # общие утилиты для метрик и speed benchmark
-├─ prepare_nwrd_detection.py           # подготовка detection-датасета из NWRD masks
-├─ run_yolov8n.py                      # обучение и оценка YOLOv8n
-├─ train_torchvision_detector.py       # обучение и оценка SSDLite / Faster R-CNN
+├─ benchmark_utils.py
+├─ prepare_nwrd_detection.py
+├─ run_yolov8n.py
+├─ train_torchvision_detector.py
+├─ requirements.txt
+├─ environment.yml
 ├─ wheat_uav_disease_detector_benchmark.md
 ├─ data/
 │  └─ nwrd_detection_tiles/
@@ -50,75 +164,43 @@
    └─ fasterrcnn_mobilenet_v3_large_320_fpn/result.json
 ```
 
-## Что делает каждый скрипт
+## Scripts
 
 ### `prepare_nwrd_detection.py`
-Готовит detection-версию датасета:
-- читает исходные изображения и маски NWRD
-- режет изображения на тайлы
-- извлекает bounding boxes из connected components
-- формирует train / val / test split
-- сохраняет `manifest.json` и `dataset.yaml`
+Builds a detection version of NWRD from segmentation masks.
 
-Запуск:
-
-```bash
-python prepare_nwrd_detection.py
-```
+Outputs include:
+- `data/nwrd_detection_tiles/dataset.yaml`
+- `data/nwrd_detection_tiles/manifest.json`
+- `data/nwrd_detection_tiles/manifest_benchmark.json`
 
 ### `run_yolov8n.py`
-Обучает и оценивает YOLOv8n.
-
-Пример:
-
-```bash
-python run_yolov8n.py \
-  --epochs 3 \
-  --imgsz 320 \
-  --batch 16 \
-  --data data/nwrd_detection_tiles/dataset.yaml \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs/yolov8n
-```
+Trains and evaluates YOLOv8n on the prepared detection benchmark.
 
 ### `train_torchvision_detector.py`
-Обучает и оценивает детекторы из torchvision.
+Trains and evaluates torchvision-based detectors:
+- `ssdlite320_mobilenet_v3_large`
+- `fasterrcnn_mobilenet_v3_large_320_fpn`
 
-SSDLite:
+### `benchmark_utils.py`
+Shared code for:
+- loading manifests;
+- COCO-style AP approximation;
+- precision/recall/F1 evaluation;
+- confidence threshold selection on validation data;
+- CPU speed benchmarking.
 
-```bash
-python train_torchvision_detector.py \
-  --model ssdlite320_mobilenet_v3_large \
-  --epochs 3 \
-  --batch-size 8 \
-  --lr 1e-4 \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs
-```
+## Evaluation protocol
 
-Faster R-CNN:
+All models are compared under one shared minimal protocol:
 
-```bash
-python train_torchvision_detector.py \
-  --model fasterrcnn_mobilenet_v3_large_320_fpn \
-  --epochs 3 \
-  --batch-size 2 \
-  --lr 1e-4 \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs
-```
+1. same `test split`;
+2. same segmentation-to-detection conversion scheme;
+3. same metrics;
+4. CPU speed benchmark with `batch=1` on 50 test tiles;
+5. confidence threshold selected on the validation split rather than tuned manually on test.
 
-## Метрики и протокол
-
-Для всех моделей использовался общий минимальный протокол:
-
-1. один и тот же `test split`
-2. одинаковая схема конвертации segmentation → detection
-3. одинаковый набор метрик
-4. speed benchmark на CPU, `batch=1`, на 50 тестовых тайлах
-5. confidence threshold выбирается по `validation set`, а не вручную на тесте
-
-Считаются:
+Reported metrics:
 - `mAP@0.5`
 - `mAP@0.5:0.95`
 - `precision`
@@ -126,153 +208,39 @@ python train_torchvision_detector.py \
 - `F1`
 - latency / FPS
 
-## Зависимости
+## What is stored in GitHub
 
-Минимально нужны:
+Included in the repository:
+- source code;
+- manifests and YAML configs;
+- final `result.json` files;
+- benchmark report;
+- environment setup files.
 
-- Python 3.10+
-- `torch`
-- `torchvision`
-- `ultralytics`
-- `numpy`
-- `Pillow`
-- `opencv-python`
+Intentionally excluded from the repository:
+- raw dataset;
+- extracted image tiles;
+- model weights;
+- large training artifacts.
 
-В репозитории есть готовый файл зависимостей:
+This keeps the repository small and makes cloning practical.
 
-```bash
-pip install -r requirements.txt
-```
+## Reproducibility notes
 
-Если нужен ручной вариант:
+This repository is designed as a **reproducible pilot benchmark**, with some important limitations:
 
-```bash
-pip install torch torchvision ultralytics numpy pillow opencv-python
-```
+- training was run in CPU-only mode;
+- detection boxes are generated automatically from segmentation masks;
+- absolute metrics are low, so this is a baseline rather than a deployment-ready pipeline;
+- exact reproduction depends on library versions and on matching the expected raw dataset layout.
 
-## Как получить NWRD
+## Detailed report
 
-Источник данных:
-
-- NWRD dataset page: https://robustreading.com/datasets/NUST-Wheat-Rust-Disease-Dataset/
-- NWRD repository: https://github.com/dll-ncai/NUST-Wheat-Rust-Disease-NWRD
-
-Скрипт `prepare_nwrd_detection.py` ожидает исходные данные в каталоге `data/NWRD` со структурой вида:
-
-```text
-data/NWRD/
-├─ train/
-│  ├─ images/
-│  └─ masks/
-└─ test/
-   ├─ images/
-   └─ masks/
-```
-
-Если вы скачали архив `NWRD.zip`, распакуйте его так, чтобы итоговый путь был именно `data/NWRD/...`.
-
-Пример:
-
-```bash
-mkdir -p data
-# распакуйте архив так, чтобы внутри появился каталог data/NWRD
-```
-
-## Как подготовить detection-датасет
-
-После того как исходный NWRD лежит в `data/NWRD`, выполните:
-
-```bash
-python prepare_nwrd_detection.py
-```
-
-Скрипт:
-- нарежет исходные изображения на тайлы,
-- извлечет боксы из disease masks,
-- создаст `train / val / test` split,
-- сохранит detection-артефакты в `data/nwrd_detection_tiles/`.
-
-В результате появятся, в частности:
-- `data/nwrd_detection_tiles/dataset.yaml`
-- `data/nwrd_detection_tiles/manifest.json`
-- `data/nwrd_detection_tiles/manifest_benchmark.json`
-
-## Как воспроизвести benchmark
-
-### 1. Подготовить данные
-
-```bash
-python prepare_nwrd_detection.py
-```
-
-### 2. Обучить и оценить YOLOv8n
-
-```bash
-python run_yolov8n.py \
-  --epochs 3 \
-  --imgsz 320 \
-  --batch 16 \
-  --data data/nwrd_detection_tiles/dataset.yaml \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs/yolov8n
-```
-
-### 3. Обучить и оценить SSDLite320-MobileNetV3-Large
-
-```bash
-python train_torchvision_detector.py \
-  --model ssdlite320_mobilenet_v3_large \
-  --epochs 3 \
-  --batch-size 8 \
-  --lr 1e-4 \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs
-```
-
-### 4. Обучить и оценить Faster R-CNN MobileNetV3 Large 320 FPN
-
-```bash
-python train_torchvision_detector.py \
-  --model fasterrcnn_mobilenet_v3_large_320_fpn \
-  --epochs 3 \
-  --batch-size 2 \
-  --lr 1e-4 \
-  --manifest data/nwrd_detection_tiles/manifest.json \
-  --outdir runs
-```
-
-### 5. Сравнить результаты
-
-После запуска итоговые метрики будут лежать в:
-
-- `runs/yolov8n/result.json`
-- `runs/ssdlite320_mobilenet_v3_large/result.json`
-- `runs/fasterrcnn_mobilenet_v3_large_320_fpn/result.json`
-
-## Что хранится в GitHub, а что нет
-
-В GitHub-репозиторий включены:
-- код
-- manifests и YAML-конфиги
-- `result.json`
-- benchmark-отчет
-- `requirements.txt`
-
-В GitHub **не включены** тяжелые артефакты:
-- raw dataset
-- extracted tiles
-- model weights
-- большие training outputs
-
-Это сделано специально, чтобы репозиторий оставался компактным и нормально клонировался.
-
-## Подробный отчет
-
-Полный текст benchmark-отчета:
+Full benchmark write-up:
 
 - [`wheat_uav_disease_detector_benchmark.md`](./wheat_uav_disease_detector_benchmark.md)
 
-## Источники
+## Sources
 
 - NWRD dataset page: https://robustreading.com/datasets/NUST-Wheat-Rust-Disease-Dataset/
 - NWRD code repository: https://github.com/dll-ncai/NUST-Wheat-Rust-Disease-NWRD
@@ -282,20 +250,17 @@ python train_torchvision_detector.py \
 - Torchvision SSDLite320 MobileNetV3 Large: https://pytorch.org/vision/stable/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html
 - Torchvision Faster R-CNN MobileNetV3 Large 320 FPN: https://pytorch.org/vision/stable/models/generated/torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn.html
 
-## Reproducibility notes
+## License
 
-Этот репозиторий задуман как **воспроизводимый pilot benchmark**, но важно учитывать ограничения:
-- обучение проводилось в CPU-only режиме;
-- detection-boxes получены автоматически из segmentation masks;
-- абсолютные метрики низкие, поэтому это baseline, а не production-ready pipeline;
-- для полного совпадения результатов важны версии библиотек и структура исходного датасета.
+This project is released under the [MIT License](./LICENSE).
 
-## Статус
+## Status
 
-Сейчас это **воспроизводимый pilot benchmark** для дальнейшего расширения:
-- можно увеличить число эпох
-- перейти на GPU
-- сравнить `imgsz=512/640`
-- добавить hard-negative mining
-- проверить lightweight segmentation-подходы
-" 
+Current status: **pilot benchmark**.
+
+Natural next steps:
+- longer training;
+- GPU runs;
+- `imgsz=512/640` comparison;
+- hard-negative mining;
+- lightweight segmentation baselines.
