@@ -1,0 +1,21 @@
+{
+  "model": "yolov8n",
+  "selected_conf_threshold_from_val": 0.030416666666666668,
+  "test_metrics": {
+    "mAP@0.5": 0.1301284800472483,
+    "mAP@0.5:0.95": 0.04570333342020941,
+    "precision@selected_conf_iou0.5": 0.45454545454545453,
+    "recall@selected_conf_iou0.5": 0.029411764705882353,
+    "f1@selected_conf_iou0.5": 0.055248618784530384,
+    "selected_conf_threshold": 0.030416666666666668
+  },
+  "speed": {
+    "latency_ms": 53.95167400012724,
+    "fps": 18.535106065432586,
+    "timed_images": 50
+  },
+  "epochs": 3,
+  "imgsz": 320,
+  "batch": 16,
+  "num_params": 3005843
+}

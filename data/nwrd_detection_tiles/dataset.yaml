@@ -1,0 +1,6 @@
+path: C:/Users/User/experiments/wheat_disease_benchmark/data/nwrd_detection_tiles
+train: train/images
+val: val/images
+test: test/images
+names:
+  0: rust

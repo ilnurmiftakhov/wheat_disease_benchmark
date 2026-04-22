@@ -14,6 +14,11 @@ env/
 
 # ML / training artifacts
 runs/
+!runs/
+runs/*
+!runs/*/
+runs/*/*
+!runs/*/result.json
 outputs/
 results/
 logs/
@@ -35,6 +40,13 @@ tensorboard/
 
 # Data
 data/
+!data/
+data/*
+!data/nwrd_detection_tiles/
+data/nwrd_detection_tiles/*
+!data/nwrd_detection_tiles/*.json
+!data/nwrd_detection_tiles/*.yaml
+!data/nwrd_detection_tiles/*_benchmark.txt
 datasets/
 *.zip
 *.7z
@@ -50,10 +62,6 @@ datasets/
 .DS_Store
 Thumbs.db
 
-data/
-*.zip
-runs/
-*.pt
 __pycache__/
 *.pyc
 .venv/

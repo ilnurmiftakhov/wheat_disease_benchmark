@@ -1,0 +1,54 @@
+{
+  "model": "ssdlite320_mobilenet_v3_large",
+  "epochs": 3,
+  "batch_size": 8,
+  "lr": 0.0001,
+  "num_params": 3708680,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 10.441139259338378,
+      "mAP@0.5": 0.00040291769850411005,
+      "mAP@0.5:0.95": 6.883985311291322e-05,
+      "precision@selected_conf_iou0.5": 0.001225531914893617,
+      "recall@selected_conf_iou0.5": 0.16981132075471697,
+      "f1@selected_conf_iou0.5": 0.002433501199851286,
+      "selected_conf_threshold": 0.5
+    },
+    {
+      "epoch": 2,
+      "train_loss": 9.233715591430665,
+      "mAP@0.5": 0.0005444491167898927,
+      "mAP@0.5:0.95": 8.634264408576635e-05,
+      "precision@selected_conf_iou0.5": 0.0017969093159765203,
+      "recall@selected_conf_iou0.5": 0.21226415094339623,
+      "f1@selected_conf_iou0.5": 0.0035636507622253018,
+      "selected_conf_threshold": 0.47958333333333336
+    },
+    {
+      "epoch": 3,
+      "train_loss": 7.746094789505005,
+      "mAP@0.5": 0.001102469524395907,
+      "mAP@0.5:0.95": 0.0001648952672185405,
+      "precision@selected_conf_iou0.5": 0.0066326530612244895,
+      "recall@selected_conf_iou0.5": 0.06132075471698113,
+      "f1@selected_conf_iou0.5": 0.011970534069981583,
+      "selected_conf_threshold": 0.47958333333333336
+    }
+  ],
+  "selected_conf_threshold_from_val": 0.47958333333333336,
+  "test_metrics": {
+    "mAP@0.5": 0.000814138597207672,
+    "mAP@0.5:0.95": 0.0001522054544788404,
+    "precision@selected_conf_iou0.5": 0.005136106831022085,
+    "recall@selected_conf_iou0.5": 0.029411764705882353,
+    "f1@selected_conf_iou0.5": 0.00874508089199825,
+    "selected_conf_threshold": 0.47958333333333336
+  },
+  "speed": {
+    "latency_ms": 86.1942440000712,
+    "fps": 11.601702777266357,
+    "timed_images": 50
+  },
+  "weights": "runs/ssdlite320_mobilenet_v3_large/best.pt"
+}
